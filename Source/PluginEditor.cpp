@@ -1,7 +1,5 @@
 #include "PluginEditor.h"
-#ifdef MXND3X_HAS_CHARACTER
 #include <BinaryData.h>
-#endif
 using namespace juce;
 void EnvelopeView::paint(Graphics &g)
 {
@@ -263,10 +261,9 @@ SidechainEditor::SidechainEditor(SidechainProcessor &proc) : AudioProcessorEdito
     }
     gr.setColour(Label::textColourId, ui::pink);
     gr.setFont(FontOptions(18.f));
-#ifdef MXND3X_HAS_CHARACTER
     character =
         ImageCache::getFromMemory(BinaryData::MXND3XCharacter_png, BinaryData::MXND3XCharacter_pngSize);
-#endif
+    jassert(character.isValid());
     setResizable(true, true);
     setResizeLimits(900, 630, 1600, 1120);
     setSize(1000, 700);
@@ -296,17 +293,6 @@ void SidechainEditor::paint(Graphics &g)
     if (character.isValid())
         g.drawImageWithin(character, 28, 101, 186, 172,
                           RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize);
-    else
-    {
-        g.setColour(ui::purple.withAlpha(.12f));
-        g.fillRoundedRectangle(33, 104, 176, 160, 14);
-        g.setColour(ui::purple);
-        g.setFont(FontOptions(34, Font::bold));
-        g.drawText("M", 33, 125, 176, 60, Justification::centred);
-        g.setColour(ui::muted);
-        g.setFont(FontOptions(11.f));
-        g.drawText("ORIGINAL ART PENDING", 33, 193, 176, 26, Justification::centred);
-    }
     g.setColour(ui::purple.withAlpha(.18f + activity * .82f));
     g.fillEllipse(780, 59, 7, 7);
     g.setColour(ui::surface);
