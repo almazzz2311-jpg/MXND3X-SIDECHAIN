@@ -30,17 +30,8 @@ AudioProcessorValueTreeState::ParameterLayout SidechainProcessor::layout()
     f("note", "MIDI note", 0, 127, 36, 1);
     p.add(std::make_unique<AudioParameterBool>(ParameterID{"any", 1}, "Any MIDI note", true));
     p.add(std::make_unique<AudioParameterBool>(ParameterID{"retrigger", 1}, "Retrigger while active", true));
-    p.add(std::make_unique<AudioParameterBool>(ParameterID{"modified", 1}, "Custom curve", false));
     for (auto id : {"viewInput", "viewOutput", "viewKick"})
         p.add(std::make_unique<AudioParameterBool>(ParameterID{id, 1}, id, String(id) != "viewKick"));
-    auto initial = mx::factory(0);
-    for (int i = 0; i < mx::pointCount; ++i)
-    {
-        p.add(std::make_unique<AudioParameterFloat>(
-            ParameterID{"x" + String(i), 1}, "Point " + String(i) + " time", 0.f, 1.f, initial[(size_t)i].x));
-        p.add(std::make_unique<AudioParameterFloat>(
-            ParameterID{"y" + String(i), 1}, "Point " + String(i) + " gain", 0.f, 1.f, initial[(size_t)i].y));
-    }
     return p;
 }
 SidechainProcessor::SidechainProcessor()
@@ -51,7 +42,6 @@ SidechainProcessor::SidechainProcessor()
       state(*this, nullptr, "MXND3X", layout())
 {
     curveIndex = state.getRawParameterValue("curve");
-    modified = state.getRawParameterValue("modified");
     params = {state.getRawParameterValue("mix"),        state.getRawParameterValue("depth"),
               state.getRawParameterValue("smooth"),     state.getRawParameterValue("crossover"),
               state.getRawParameterValue("band"),       state.getRawParameterValue("mode"),
@@ -59,11 +49,6 @@ SidechainProcessor::SidechainProcessor()
               state.getRawParameterValue("threshold"),  state.getRawParameterValue("sensitivity"),
               state.getRawParameterValue("protection"), state.getRawParameterValue("note"),
               state.getRawParameterValue("any"),        state.getRawParameterValue("retrigger")};
-    for (int i = 0; i < mx::pointCount; ++i)
-    {
-        xs[(size_t)i] = state.getRawParameterValue("x" + String(i));
-        ys[(size_t)i] = state.getRawParameterValue("y" + String(i));
-    }
 }
 float SidechainProcessor::value(const String &id) const
 {
@@ -80,28 +65,11 @@ void SidechainProcessor::setParameter(const String &id, float v)
 }
 void SidechainProcessor::selectCurve(int n)
 {
-    setParameter("curve", float(n));
-    auto c = mx::factory(n);
-    for (int i = 0; i < mx::pointCount; ++i)
-    {
-        setParameter("x" + String(i), c[(size_t)i].x);
-        setParameter("y" + String(i), c[(size_t)i].y);
-    }
-    setParameter("modified", 0);
+    setParameter("curve", float(std::clamp(n, 0, 15)));
 }
 mx::Curve SidechainProcessor::curve() const
 {
-    if (modified->load() < .5f)
-        return mx::factory(int(curveIndex->load()));
-    mx::Curve c{};
-    for (int i = 0; i < mx::pointCount; ++i)
-        c[(size_t)i] = {xs[(size_t)i]->load(), ys[(size_t)i]->load()};
-    c.front().x = 0;
-    c.back().x = 1;
-    for (int i = 1; i < mx::pointCount - 1; ++i)
-        c[(size_t)i].x = std::clamp(c[(size_t)i].x, c[(size_t)i - 1].x + .001f,
-                                    1.f - float(mx::pointCount - 1 - i) * .001f);
-    return c;
+    return mx::factory(int(curveIndex->load()));
 }
 bool SidechainProcessor::isBusesLayoutSupported(const BusesLayout &l) const
 {
@@ -221,7 +189,7 @@ void SidechainProcessor::processBlock(AudioBuffer<float> &buffer, MidiBuffer &mi
 void SidechainProcessor::getStateInformation(MemoryBlock &b)
 {
     auto tree = state.copyState();
-    tree.setProperty("schemaVersion", 1, nullptr);
+    tree.setProperty("schemaVersion", 2, nullptr);
     auto xml = tree.createXml();
     copyXmlToBinary(*xml, b);
 }
@@ -232,7 +200,19 @@ void SidechainProcessor::setStateInformation(const void *d, int n)
         {
             auto t = ValueTree::fromXml(*xml);
             if (t.isValid())
+            {
+                // Old custom points cannot modify the fixed bank, including via
+                // previously saved projects/presets or stale automation data.
+                for (int i = t.getNumChildren() - 1; i >= 0; --i)
+                {
+                    auto id = t.getChild(i).getProperty("id").toString();
+                    if (id == "modified" ||
+                        (id.length() == 2 && (id[0] == 'x' || id[0] == 'y') && id[1] >= '0' && id[1] <= '8'))
+                        t.removeChild(i, nullptr);
+                }
+                t.setProperty("schemaVersion", 2, nullptr);
                 state.replaceState(t);
+            }
         }
 }
 void SidechainProcessor::reset()

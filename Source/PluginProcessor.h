@@ -56,9 +56,7 @@ class SidechainProcessor final : public juce::AudioProcessor
         std::atomic<float> *any;
         std::atomic<float> *retrigger;
     } params{};
-    std::array<std::atomic<float> *, mx::pointCount> xs{}, ys{};
     std::atomic<float> *curveIndex = nullptr;
-    std::atomic<float> *modified = nullptr;
     double inputPower = 0, outputPower = 0;
     int meterCounter = 0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SidechainProcessor)

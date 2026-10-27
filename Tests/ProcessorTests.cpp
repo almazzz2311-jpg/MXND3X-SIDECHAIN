@@ -79,9 +79,7 @@ int main()
         p.setParameter("mix", .27f);
         p.setParameter("depth", .63f);
         p.setParameter("band", 2);
-        p.setParameter("x3", .34f);
-        p.setParameter("y3", .19f);
-        p.setParameter("modified", 1);
+        p.selectCurve(15);
         MemoryBlock state;
         p.getStateInformation(state);
         SidechainProcessor restored;
@@ -91,6 +89,34 @@ int main()
             auto *a = dynamic_cast<AudioProcessorParameterWithID *>(param);
             check(std::abs(p.value(a->paramID) - restored.value(a->paramID)) < .00001f,
                   "all parameters restore");
+        }
+        ++scenarios;
+        check(p.state.getParameter("modified") == nullptr && p.state.getParameter("x3") == nullptr &&
+                  p.state.getParameter("y3") == nullptr,
+              "no customizable curve parameters exposed");
+        for (int shape = 0; shape < 16; ++shape)
+        {
+            restored.selectCurve(shape);
+            auto legacy = restored.state.copyState();
+            for (auto id : {"modified", "x3", "y3"})
+            {
+                ValueTree child("PARAM");
+                child.setProperty("id", id, nullptr);
+                child.setProperty("value", 1.f, nullptr);
+                legacy.appendChild(child, nullptr);
+            }
+            MemoryBlock old;
+            AudioProcessor::copyXmlToBinary(*legacy.createXml(), old);
+            restored.setStateInformation(old.getData(), int(old.getSize()));
+            auto actual = restored.curve(), expected = mx::factory(shape);
+            for (int n = 0; n <= 1000; ++n)
+                check(mx::envelope(actual, n / 1000.) == mx::envelope(expected, n / 1000.),
+                      "legacy custom data cannot alter any fixed shape");
+            for (auto child : restored.state.copyState())
+                check(child.getProperty("id").toString() != "modified" &&
+                          child.getProperty("id").toString() != "x3" &&
+                          child.getProperty("id").toString() != "y3",
+                      "old custom data stripped on load");
         }
         ++scenarios;
         p.reset();
@@ -106,7 +132,15 @@ int main()
         p.processBlock(b, midi);
         for (int n = 0; n < 200; ++n)
             check(b.getSample(0, n) == 1, "MIDI before offset remains dry");
-        check(b.getSample(0, 400) < .4f, "MIDI trigger at offset");
+        float referenceGain = 1;
+        const float coefficient = float(1 - std::exp(-1 / (.003 * 48000)));
+        for (int n = 200; n < 512; ++n)
+        {
+            float target = mx::envelope(mx::factory(0), double(n - 200) / 24000);
+            referenceGain += coefficient * (target - referenceGain);
+            check(std::abs(b.getSample(0, n) - referenceGain) < .00001f,
+                  "MIDI output follows fixed envelope from exact note offset");
+        }
         ++scenarios;
         p.reset();
         p.setRateAndBufferSizeDetails(48000, 512);

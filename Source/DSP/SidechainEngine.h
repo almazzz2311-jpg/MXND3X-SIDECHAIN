@@ -14,44 +14,181 @@ struct Point
     float x = 0, y = 1;
 };
 using Curve = std::array<Point, pointCount>;
+// Fixed, original implementations of the 16 silhouettes in the supplied reference,
+// ordered left-to-right across the top row, then the bottom row.
 inline constexpr std::array<const char *, 16> names{
-    {"Classic Pump", "Smooth Duck", "Tight Kick", "Deep Pump", "Short Duck", "Long Release", "House Groove",
-     "Techno Pump", "Hyperpop", "Trap Bounce", "Hard Duck", "Soft Curve", "Fast Recovery", "Slow Recovery",
-     "Reverse Shape", "Custom"}};
+    {"Shape 01", "Shape 02", "Shape 03", "Shape 04", "Shape 05", "Shape 06", "Shape 07", "Shape 08",
+     "Shape 09", "Shape 10", "Shape 11", "Shape 12", "Shape 13", "Shape 14", "Shape 15", "Shape 16"}};
 inline Curve factory(int index)
 {
-    constexpr float shapes[16][9] = {{0, .01f, .12f, .40f, .73f, .92f, 1, 1, 1},
-                                     {.12f, .16f, .30f, .50f, .72f, .87f, .96f, 1, 1},
-                                     {0, .05f, .75f, 1, 1, 1, 1, 1, 1},
-                                     {0, 0, 0, .03f, .16f, .40f, .72f, .93f, 1},
-                                     {0, .65f, 1, 1, 1, 1, 1, 1, 1},
-                                     {0, .01f, .05f, .13f, .26f, .44f, .65f, .85f, 1},
-                                     {0, .03f, .30f, .80f, 1, .76f, .85f, 1, 1},
-                                     {0, 0, .02f, .12f, .67f, 1, 1, 1, 1},
-                                     {0, 0, .90f, 1, .64f, 1, 1, 1, 1},
-                                     {0, .1f, .85f, 1, .30f, .70f, 1, 1, 1},
-                                     {0, 0, 0, 0, .02f, .90f, 1, 1, 1},
-                                     {.45f, .48f, .59f, .71f, .83f, .93f, .98f, 1, 1},
-                                     {0, .90f, 1, 1, 1, 1, 1, 1, 1},
-                                     {0, 0, .01f, .04f, .10f, .23f, .46f, .76f, 1},
-                                     {1, 1, .98f, .90f, .75f, .50f, .25f, .08f, 0},
-                                     {0, .05f, .18f, .38f, .62f, .82f, .95f, 1, 1}};
-    Curve c{};
-    for (int i = 0; i < pointCount; ++i)
-        c[(size_t)i] = {float(i) / 8, shapes[std::clamp(index, 0, 15)][i]};
-    return c;
+    static constexpr std::array<Curve, 16> curves{
+        {{{{0, .30f},
+           {.06f, .02f},
+           {.16f, .05f},
+           {.31f, .68f},
+           {.46f, 1},
+           {.70f, 1},
+           {.90f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.12f, 0},
+           {.24f, .08f},
+           {.40f, .72f},
+           {.55f, 1},
+           {.72f, 1},
+           {.90f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.10f, .02f},
+           {.23f, .42f},
+           {.40f, .84f},
+           {.62f, .98f},
+           {.78f, 1},
+           {.91f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.14f, 0},
+           {.25f, .12f},
+           {.35f, .78f},
+           {.46f, 1},
+           {.68f, 1},
+           {.90f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.20f, 0},
+           {.38f, .04f},
+           {.48f, .18f},
+           {.55f, 1},
+           {.69f, 1},
+           {.82f, 1},
+           {.92f, .12f},
+           {1, 0}}},
+         {{{0, 1}, {.08f, 1}, {.15f, .55f}, {.23f, 0}, {.40f, 0}, {.58f, 0}, {.75f, 0}, {.90f, 0}, {1, 0}}},
+         {{{0, 1},
+           {.24f, 1},
+           {.46f, .98f},
+           {.60f, .75f},
+           {.67f, .15f},
+           {.73f, 0},
+           {.86f, .02f},
+           {.94f, .20f},
+           {1, 1}}},
+         {{{0, 0},
+           {.22f, 0},
+           {.43f, .04f},
+           {.59f, .23f},
+           {.72f, .65f},
+           {.78f, 1},
+           {.87f, .60f},
+           {.95f, .14f},
+           {1, 0}}},
+         {{{0, 0},
+           {.12f, .08f},
+           {.27f, .34f},
+           {.43f, .66f},
+           {.60f, .96f},
+           {.66f, 1},
+           {.85f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.20f, 0},
+           {.34f, .06f},
+           {.43f, .42f},
+           {.51f, .90f},
+           {.59f, 1},
+           {.83f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.26f, 0},
+           {.40f, 0},
+           {.47f, .10f},
+           {.52f, .80f},
+           {.57f, 1},
+           {.80f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.14f, 0},
+           {.22f, .02f},
+           {.28f, .15f},
+           {.33f, .90f},
+           {.39f, 1},
+           {.75f, 1},
+           {.995f, 1},
+           {1, .55f}}},
+         {{{0, 0},
+           {.22f, 0},
+           {.38f, 0},
+           {.43f, .08f},
+           {.47f, 1},
+           {.65f, 1},
+           {.76f, 1},
+           {.86f, .08f},
+           {1, 0}}},
+         {{{0, 1},
+           {.10f, .98f},
+           {.24f, .73f},
+           {.41f, .35f},
+           {.58f, .10f},
+           {.72f, 0},
+           {.83f, 0},
+           {.93f, 0},
+           {1, 0}}},
+         {{{0, 1},
+           {.17f, 1},
+           {.25f, .70f},
+           {.32f, .10f},
+           {.40f, 0},
+           {.65f, 0},
+           {.78f, .02f},
+           {.90f, .27f},
+           {1, 1}}},
+         {{{0, 0},
+           {.12f, .18f},
+           {.29f, .62f},
+           {.39f, .60f},
+           {.51f, .06f},
+           {.61f, .20f},
+           {.76f, .83f},
+           {.89f, 1},
+           {1, .55f}}}}};
+    return curves[(size_t)std::clamp(index, 0, 15)];
 }
 inline float envelope(const Curve &c, double phase)
 {
     const float p = std::clamp(float(phase), 0.f, 1.f);
+    // Monotone cubic Hermite interpolation: smooth rises and falls, with no
+    // extra ripples or overshoot between the fixed silhouette's knots.
+    auto secant = [&](size_t i) { return (c[i + 1].y - c[i].y) / std::max(.00001f, c[i + 1].x - c[i].x); };
+    auto tangent = [&](size_t i)
+    {
+        if (i == 0)
+            return secant(0);
+        if (i == c.size() - 1)
+            return secant(i - 1);
+        float left = secant(i - 1), right = secant(i);
+        if (left * right <= 0)
+            return 0.f;
+        float h0 = c[i].x - c[i - 1].x, h1 = c[i + 1].x - c[i].x;
+        float w0 = 2 * h1 + h0, w1 = h1 + 2 * h0;
+        return (w0 + w1) / (w0 / left + w1 / right);
+    };
     for (size_t i = 1; i < c.size(); ++i)
         if (p <= c[i].x)
         {
-            float t = std::clamp((p - c[i - 1].x) / std::max(.00001f, c[i].x - c[i - 1].x), 0.f, 1.f);
-            t = t * t * (3 - 2 * t);
-            return std::clamp(c[i - 1].y + (c[i].y - c[i - 1].y) * t, 0.f, 1.f);
+            float h = std::max(.00001f, c[i].x - c[i - 1].x);
+            float t = std::clamp((p - c[i - 1].x) / h, 0.f, 1.f), t2 = t * t, t3 = t2 * t;
+            return std::clamp((2 * t3 - 3 * t2 + 1) * c[i - 1].y + (t3 - 2 * t2 + t) * h * tangent(i - 1) +
+                                  (-2 * t3 + 3 * t2) * c[i].y + (t3 - t2) * h * tangent(i),
+                              0.f, 1.f);
         }
-    return std::clamp(c.back().y, 0.f, 1.f);
+    return c.back().y;
 }
 inline double cycleBeats(int timing, int modifier)
 {

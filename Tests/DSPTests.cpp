@@ -34,6 +34,23 @@ int main()
                 require(energy > 0 && energy < sr * .25, "curves attenuate");
                 ++checks;
             }
+        for (int shape = 0; shape < 16; ++shape)
+        {
+            auto c = mx::factory(shape);
+            for (size_t i = 1; i < c.size(); ++i)
+            {
+                require(c[i].x > c[i - 1].x, "fixed knot times strictly ordered");
+                for (int n = 0; n <= 100; ++n)
+                {
+                    double phase = c[i - 1].x + (c[i].x - c[i - 1].x) * n / 100.;
+                    float y = mx::envelope(c, phase);
+                    require(std::isfinite(y) && y >= std::min(c[i - 1].y, c[i].y) - .00001f &&
+                                y <= std::max(c[i - 1].y, c[i].y) + .00001f,
+                            "shape interpolation preserves each silhouette without overshoot");
+                }
+            }
+            ++checks;
+        }
         for (bool depth : {false, true})
             for (int band = 0; band < 3; ++band)
             {

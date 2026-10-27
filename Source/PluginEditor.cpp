@@ -63,78 +63,14 @@ void EnvelopeView::paint(Graphics &g)
     g.strokePath(path, PathStrokeType(9));
     g.setColour(ui::pink);
     g.strokePath(path, PathStrokeType(2.4f));
-    for (auto pt : c)
-    {
-        auto x = r.getX() + pt.x * r.getWidth(), y = r.getBottom() - pt.y * r.getHeight();
-        g.setColour(ui::panel);
-        g.fillEllipse(x - 5, y - 5, 10, 10);
-        g.setColour(ui::pink);
-        g.drawEllipse(x - 5, y - 5, 10, 10, 1.4f);
-    }
     float x = r.getX() + std::clamp(p.position.load(), 0.f, 1.f) * r.getWidth();
     g.setColour(ui::text.withAlpha(.7f));
     g.drawLine(x, r.getY(), x, r.getBottom(), 1);
     g.setColour(ui::muted);
     g.setFont(FontOptions(10.f));
     g.drawText("100%", int(r.getX()), 2, 50, 18, Justification::left);
-    g.drawText("DRAG POINTS TO SHAPE YOUR GROOVE", int(r.getX()), getHeight() - 20, 330, 16,
+    g.drawText("FIXED ENVELOPE / SELECT A SHAPE BELOW", int(r.getX()), getHeight() - 20, 330, 16,
                Justification::left);
-}
-void EnvelopeView::mouseDown(const MouseEvent &e)
-{
-    auto r = plot();
-    auto c = p.curve();
-    float distance = 100000;
-    for (int i = 0; i < mx::pointCount; ++i)
-    {
-        Point<float> pt(r.getX() + c[(size_t)i].x * r.getWidth(),
-                        r.getBottom() - c[(size_t)i].y * r.getHeight());
-        float d = pt.getDistanceFrom(e.position);
-        if (d < distance)
-        {
-            distance = d;
-            selected = i;
-        }
-    }
-    if (distance > 25)
-    {
-        selected = -1;
-        return;
-    }
-    p.state.getParameter("x" + String(selected))->beginChangeGesture();
-    p.state.getParameter("y" + String(selected))->beginChangeGesture();
-    mouseDrag(e);
-}
-void EnvelopeView::mouseDrag(const MouseEvent &e)
-{
-    if (selected < 0)
-        return;
-    auto r = plot();
-    auto c = p.curve();
-    float x = selected == 0 ? 0
-              : selected == 8
-                  ? 1
-                  : std::clamp((e.position.x - r.getX()) / r.getWidth(), c[(size_t)selected - 1].x + .0001f,
-                               c[(size_t)selected + 1].x - .0001f);
-    float y = std::clamp((r.getBottom() - e.position.y) / r.getHeight(), 0.f, 1.f);
-    p.state.getParameter("x" + String(selected))->setValueNotifyingHost(x);
-    p.state.getParameter("y" + String(selected))->setValueNotifyingHost(y);
-    p.setParameter("modified", 1);
-    repaint();
-}
-void EnvelopeView::mouseUp(const MouseEvent &)
-{
-    if (selected >= 0)
-    {
-        p.state.getParameter("x" + String(selected))->endChangeGesture();
-        p.state.getParameter("y" + String(selected))->endChangeGesture();
-        selected = -1;
-    }
-}
-void EnvelopeView::mouseDoubleClick(const MouseEvent &)
-{
-    p.selectCurve(int(p.value("curve")));
-    repaint();
 }
 void CurveButton::paintButton(Graphics &g, bool over, bool)
 {
@@ -145,7 +81,7 @@ void CurveButton::paintButton(Graphics &g, bool over, bool)
     g.setColour(active ? ui::purple : ui::surface);
     g.drawRoundedRectangle(r, 6, 1);
     Path path;
-    auto c = index == 15 ? p.curve() : mx::factory(index);
+    auto c = mx::factory(index);
     auto plot = r.reduced(8, 6).withTrimmedBottom(14);
     for (int i = 0; i <= 60; ++i)
     {
@@ -166,6 +102,7 @@ SidechainEditor::SidechainEditor(SidechainProcessor &proc) : AudioProcessorEdito
     setLookAndFeel(&theme);
     addAndMakeVisible(canvas);
     canvas.addAndMakeVisible(graph);
+    graph.setInterceptsMouseClicks(false, false);
     const char *ids[] = {"mix",         "depth",      "smooth", "crossover", "threshold",
                          "sensitivity", "protection", "note",   "unused"};
     const char *labels[] = {"MIX",
@@ -247,12 +184,11 @@ SidechainEditor::SidechainEditor(SidechainProcessor &proc) : AudioProcessorEdito
     };
     output.onClick = [this] { graph.showOutput = output.getToggleState(); };
     kick.onClick = [this] { graph.showKick = kick.getToggleState(); };
-    for (auto *b : {&save, &load, &resetButton, &resetCurve})
+    for (auto *b : {&save, &load, &resetButton})
         canvas.addAndMakeVisible(b);
     save.onClick = [this] { preset(true); };
     load.onClick = [this] { preset(false); };
     resetButton.onClick = [this] { p.reset(); };
-    resetCurve.onClick = [this] { p.selectCurve(int(p.value("curve"))); };
     for (auto *l : {&status, &gr, &bpmLabel})
     {
         canvas.addAndMakeVisible(l);
@@ -342,7 +278,6 @@ void SidechainEditor::resized()
     save.setBounds(800, 15, 83, 26);
     load.setBounds(891, 15, 83, 26);
     resetButton.setBounds(891, 48, 83, 24);
-    resetCurve.setBounds(855, 641, 120, 25);
     status.setBounds(245, 642, 600, 24);
     bpmLabel.setBounds(248, 24, 130, 28);
 }
@@ -366,8 +301,6 @@ void SidechainEditor::timerCallback()
     if (int(p.value("mode")) == 1)
         info = p.sidechainConnected.load() ? "EXTERNAL SIDECHAIN BUS ENABLED"
                                            : "NO EXTERNAL SIDECHAIN / WAITING FOR ROUTING";
-    if (p.value("modified") > .5f)
-        info += "  /  CUSTOM";
     status.setText(info, dontSendNotification);
     const bool audio = int(p.value("mode")) == 1, midi = int(p.value("mode")) == 2;
     for (int i = 4; i <= 6; ++i)
